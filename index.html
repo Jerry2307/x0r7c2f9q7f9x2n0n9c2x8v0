@@ -3,9 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <title>Convert ảnh → WebP → Google Drive</title>
+
     <style>
       body {
-        font-family: Arial;
+        font-family: Arial, sans-serif;
         background: #f5f6fa;
         padding: 30px;
       }
@@ -15,35 +16,63 @@
         background: #fff;
         padding: 20px;
         border-radius: 12px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
       }
+      h2 {
+        margin-top: 0;
+      }
+
       .row {
         display: flex;
-        gap: 12px;
         align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
       }
       button {
         padding: 10px 14px;
+        cursor: pointer;
         border-radius: 6px;
         border: 1px solid #ddd;
-        cursor: pointer;
+        background: #fff;
       }
       button.primary {
         background: #4facfe;
         color: #fff;
         border: none;
       }
+
       .split {
         display: grid;
         grid-template-columns: 300px 1fr;
         gap: 16px;
         margin-top: 16px;
       }
+
       .panel {
         border: 1px solid #eee;
         border-radius: 12px;
         padding: 12px;
         background: #fafafa;
       }
+      .panel h3 {
+        margin: 0 0 10px;
+        font-size: 14px;
+      }
+
+      .breadcrumb {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 8px;
+      }
+
+      .search {
+        width: 87%;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        margin-bottom: 8px;
+      }
+
       .list {
         max-height: 360px;
         overflow: auto;
@@ -51,45 +80,170 @@
         flex-direction: column;
         gap: 6px;
       }
+
       .item {
         padding: 10px;
         border-radius: 8px;
         border: 1px solid #e9e9e9;
         background: #fff;
         cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
       }
       .item:hover {
         background: #f2f7ff;
       }
+      .item.active {
+        background: #eaf3ff;
+        border-color: #b7d6ff;
+      }
+
+      .icon {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        background: #eee;
+        display: grid;
+        place-items: center;
+        font-size: 14px;
+      }
+
+      .muted {
+        font-size: 12px;
+        color: #777;
+      }
+
+      /* Preview */
       .preview {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
         gap: 12px;
+        margin-top: 10px;
+        margin-bottom: 50px;
       }
       .preview-item {
+        position: relative;
         border: 1px solid #ddd;
         border-radius: 10px;
         padding: 6px;
         background: #fff;
-        min-height: 160px;
+
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+
+        min-height: 160px; /* 🔥 quan trọng */
       }
+
       .preview-item img {
         width: 100%;
         height: 90px;
         object-fit: cover;
         border-radius: 6px;
       }
+      .preview-remove {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
       .preview-name {
         font-size: 12px;
         margin-top: 6px;
+        line-height: 1.3;
+
+        /* xuống dòng nhưng giới hạn */
         display: -webkit-box;
-        -webkit-line-clamp: 2;
+        -webkit-line-clamp: 2; /* tối đa 2 dòng */
         -webkit-box-orient: vertical;
+
+        overflow: hidden;
+        word-break: break-word;
+      }
+
+      .progress {
+        width: 100%;
+        background: #ddd;
+        height: 18px;
+        border-radius: 999px;
+        margin-top: 10px;
         overflow: hidden;
       }
+      .progress-bar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #4facfe, #00f2fe);
+        font-size: 11px;
+        line-height: 18px;
+        text-align: center;
+        color: #000;
+      }
+
+      /* Drag drop */
+      #dropzone {
+        margin-top: 10px;
+        padding: 14px;
+        border: 2px dashed #4facfe;
+        border-radius: 10px;
+        text-align: center;
+        background: #f6fbff;
+        cursor: pointer;
+      }
+
+      .asset-item {
+        position: relative;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 6px;
+        background: #fff;
+        cursor: pointer;
+      }
+      .asset-item:hover {
+        outline: 2px solid #4facfe;
+        border-color: #4facfe;
+      }
+      .asset-item img {
+        width: 100%;
+        height: 90px;
+        object-fit: cover;
+        border-radius: 6px;
+      }
+      .asset-badge {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        font-size: 11px;
+        background: rgba(0, 0, 0, 0.65);
+        color: #fff;
+        padding: 2px 6px;
+        border-radius: 999px;
+      }
+
+      .asset-del {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        border: 1px solid #ddd;
+        background: #fff;
+        cursor: pointer;
+        font-size: 14px;
+        line-height: 5px;
+        display: grid;
+        place-items: center;
+      }
+      .asset-del:hover {
+        border-color: #ff5b5b;
+        color: #ff5b5b;
+      }
+      /* Scroll cho asset trong folder */
       #assetList {
-        max-height: 420px;
+        max-height: 420px; /* chỉnh cao thấp tuỳ ý */
         overflow-y: auto;
+        padding-right: 6px; /* chừa chỗ scrollbar */
       }
     </style>
   </head>
@@ -100,21 +254,43 @@
 
       <div class="row">
         <button class="primary" onclick="login()">🔐 Đăng nhập Google</button>
-        <span id="who"></span>
+        <span id="who" class="muted"></span>
       </div>
 
       <div class="split">
         <div class="panel">
-          <h3>Assets trong Drive</h3>
-          <div id="assetList" class="preview"></div>
+          <h3>Folder Drive</h3>
+          <div id="breadcrumb" class="breadcrumb">My Drive</div>
+          <input
+            id="folderSearch"
+            class="search"
+            placeholder="Tìm thư mục..."
+            oninput="renderFolders()"
+            disabled
+          />
+          <div class="muted">
+            Folder đã chọn: <b id="chosenFolder">Chưa chọn</b>
+          </div>
+          <div id="folderList" class="list"></div>
+          <div class="muted" style="margin-top: 10px">
+            Assets trong folder: <b id="assetFolderName">Chưa chọn</b>
+          </div>
+
+          <div id="assetList" class="preview" style="margin-top: 8px"></div>
         </div>
 
         <div class="panel">
           <h3>Upload</h3>
           <input type="file" id="fileInput" multiple accept="image/*" />
+          <div id="dropzone">🖱️ Kéo & thả ảnh vào đây</div>
           <div id="preview" class="preview"></div>
           <button class="primary" onclick="start()">🚀 Convert & Upload</button>
-          <div id="status"></div>
+          <button onclick="clearAll()">🧹 Clear all</button>
+
+          <div class="progress">
+            <div id="progressBar" class="progress-bar">0%</div>
+          </div>
+          <div id="status" class="muted">Chưa có thao tác</div>
         </div>
       </div>
     </div>
@@ -123,152 +299,339 @@
     <script src="https://accounts.google.com/gsi/client"></script>
 
     <script>
-      /* ================= CONFIG ================= */
       const CLIENT_ID =
         "860632481172-1nnq4dparmjdqrrehh407uv33ppvu2b7.apps.googleusercontent.com";
       const API_KEY = "AIzaSyC6aOoJLRvkAmOn8MVtsu6yPO-mzK3AR3U";
-      const SCOPES = "https://www.googleapis.com/auth/drive";
+      const SCOPES =
+        "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file";
+
       const DISCOVERY =
         "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest";
 
-      /* ================= STATE ================= */
       let accessToken = null;
-      let driveAssets = [];
-      let selectedItems = []; // LocalFile | DriveAsset
+      let currentFolderId = "root";
+      let folderStack = [{ id: "root", name: "My Drive" }];
+      let allFolders = [];
+      let folderId = null;
+      let selectedFiles = [];
+      let driveAssets = []; // ảnh trong folder Drive
       const previewURLs = new WeakMap();
 
-      /* ================= LOGIN ================= */
+      function cleanupPreviewCache(files = selectedFiles) {
+        files.forEach((f) => {
+          const url = previewURLs.get(f);
+          if (url) {
+            URL.revokeObjectURL(url);
+            previewURLs.delete(f); // ✅ đúng với WeakMap
+          }
+        });
+      }
+
+      function isDuplicate(file) {
+        return selectedFiles.some(
+          (f) => f.name === file.name && f.size === file.size
+        );
+      }
+
+      function initGapi() {
+        return new Promise((resolve) => {
+          gapi.load("client", async () => {
+            await gapi.client.init({
+              apiKey: API_KEY,
+              discoveryDocs: [DISCOVERY],
+            });
+            resolve();
+          });
+        });
+      }
+
       function login() {
         const tc = google.accounts.oauth2.initTokenClient({
           client_id: CLIENT_ID,
           scope: SCOPES,
           callback: async (t) => {
             accessToken = t.access_token;
-            await gapi.load("client");
-            await gapi.client.init({
-              apiKey: API_KEY,
-              discoveryDocs: [DISCOVERY],
-            });
+            await initGapi();
             gapi.client.setToken({ access_token: accessToken });
-            who.textContent = "✅ Đã kết nối Drive";
-            loadAssets();
+            document.getElementById("who").textContent =
+              "✅ Đã kết nối Google Drive";
+            document.getElementById("folderSearch").disabled = false;
+            folderStack = [{ id: "root", name: "My Drive" }];
+            folderId = null;
+            await loadFolders("root");
           },
         });
         tc.requestAccessToken();
       }
 
-      /* ================= LOAD DRIVE ASSETS ================= */
-      async function loadAssets() {
+      async function loadFolders(parentId) {
+        currentFolderId = parentId;
+        allFolders = [];
         driveAssets = [];
         let pageToken = null;
+
         do {
           const res = await gapi.client.drive.files.list({
-            q: "trashed=false and mimeType contains 'image/'",
-            fields: "nextPageToken,files(id,name,thumbnailLink,iconLink)",
+            q:
+              parentId === "root"
+                ? "trashed=false"
+                : `trashed=false and '${parentId}' in parents`,
+            fields:
+              "nextPageToken, files(id,name,mimeType,thumbnailLink,iconLink,size)",
+            pageSize: 1000,
             pageToken,
+            supportsAllDrives: true,
+            includeItemsFromAllDrives: true,
           });
-          driveAssets.push(...res.result.files);
+
+          (res.result.files || []).forEach((f) => {
+            if (f.mimeType === "application/vnd.google-apps.folder") {
+              allFolders.push(f);
+            } else if (f.mimeType && f.mimeType.startsWith("image/")) {
+              driveAssets.push(f);
+            }
+          });
+
           pageToken = res.result.nextPageToken;
         } while (pageToken);
-        renderAssets();
+
+        renderFolders();
+        renderAssets(); // ✅ hiển thị asset trong folder bên trái
       }
 
+      async function deleteDriveFile(fileId) {
+        await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+          method: "DELETE",
+          headers: { Authorization: "Bearer " + accessToken },
+        });
+      }
+
+      function renderFolders() {
+        const list = document.getElementById("folderList");
+        const keyword = folderSearch.value.toLowerCase();
+        list.innerHTML = "";
+
+        if (folderStack.length > 1)
+          list.innerHTML += `<div class="item" onclick="goUp()"><div class="icon">↩</div>Quay lại</div>`;
+
+        list.innerHTML += `<div class="item ${
+          folderId === currentFolderId ? "active" : ""
+        }" onclick="selectFolder()">📌 Chọn thư mục hiện tại</div>`;
+
+        allFolders
+          .filter((f) => !keyword || f.name.toLowerCase().includes(keyword))
+          .forEach((f) => {
+            list.innerHTML += `<div class="item" onclick="enterFolder('${f.id}','${f.name}')"><div class="icon">📁</div>${f.name}</div>`;
+          });
+
+        breadcrumb.textContent = folderStack.map((f) => f.name).join(" / ");
+
+        const assetFolderName = document.getElementById("assetFolderName");
+        if (assetFolderName) {
+          assetFolderName.textContent = folderStack.at(-1)?.name || "My Drive";
+        }
+      }
       function renderAssets() {
-        assetList.innerHTML = "";
+        const box = document.getElementById("assetList");
+        if (!box) return;
+
+        box.innerHTML = "";
+        const frag = document.createDocumentFragment();
+
         driveAssets.forEach((f) => {
           const div = document.createElement("div");
-          div.className = "preview-item";
-          div.onclick = () => addDriveAsset(f);
-          div.innerHTML = `
-      <img src="${f.thumbnailLink || f.iconLink}">
-      <div class="preview-name">${f.name}</div>
-    `;
-          assetList.appendChild(div);
-        });
-      }
+          div.className = "asset-item";
+          div.onclick = () => addDriveAssetToUpload(f.id, f.name);
 
-      /* ================= ADD ITEMS ================= */
-      function addDriveAsset(f) {
-        if (selectedItems.some((x) => x.__driveId === f.id)) return;
-        selectedItems.push({
-          __driveId: f.id,
-          name: f.name,
-          thumbnail: f.thumbnailLink || f.iconLink,
-          type: "drive",
+          const badge = document.createElement("div");
+          badge.className = "asset-badge";
+          badge.textContent = "Drive";
+
+          const del = document.createElement("button");
+          del.className = "asset-del";
+          del.textContent = "✕";
+          del.onclick = (e) => {
+            e.stopPropagation();
+            deleteDriveAsset(f.id, f.name);
+          };
+
+          const img = document.createElement("img");
+          img.loading = "lazy";
+          img.src = f.thumbnailLink || f.iconLink || "";
+
+          const name = document.createElement("div");
+          name.className = "preview-name";
+          name.textContent = f.name;
+
+          div.append(badge, del, img, name);
+          frag.appendChild(div);
         });
+
+        box.appendChild(frag);
+      }
+      function clearAll() {
+        cleanupPreviewCache();
+
+        selectedFiles = [];
         renderPreview();
+        status.textContent = "🧹 Đã xoá toàn bộ danh sách upload!";
+        progressBar.style.width = "0%";
+        progressBar.textContent = "0%";
       }
 
-      fileInput.onchange = (e) => {
-        [...e.target.files].forEach((f) => {
-          selectedItems.push({ file: f, name: f.name, type: "local" });
+      // click asset => tải file từ Drive => đẩy vào selectedFiles => renderPreview()
+      async function addDriveAssetToUpload(fileId, name) {
+        // chặn duplicate theo id (đã từng add từ Drive)
+        if (selectedFiles.some((x) => x.__driveId === fileId)) return;
+
+        status.textContent = "Đang tải asset: " + name;
+
+        const res = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+          {
+            headers: { Authorization: "Bearer " + accessToken },
+          }
+        );
+
+        const blob = await res.blob();
+        const file = new File([blob], name, { type: blob.type || "image/*" });
+        file.__driveId = fileId; // đánh dấu để biết file này từ Drive
+
+        // chặn duplicate theo name+size như bạn đang làm
+        if (isDuplicate(file)) return;
+
+        selectedFiles.push(file);
+        renderPreview();
+        status.textContent = "✅ Đã thêm vào Upload: " + name;
+      }
+
+      function escapeHtml(str) {
+        return String(str).replace(
+          /[&<>"']/g,
+          (m) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#039;",
+            }[m])
+        );
+      }
+
+      function enterFolder(id, name) {
+        folderStack.push({ id, name });
+        loadFolders(id);
+      }
+      function goUp() {
+        folderStack.pop();
+        loadFolders(folderStack.at(-1).id);
+      }
+      function selectFolder() {
+        folderId = currentFolderId;
+        chosenFolder.textContent = folderStack.at(-1).name;
+      }
+
+      /* Drag & Drop */
+      dropzone.ondragover = (e) => {
+        e.preventDefault();
+        dropzone.style.background = "#eaf5ff";
+      };
+      dropzone.ondragleave = () => (dropzone.style.background = "#f6fbff");
+      dropzone.ondrop = (e) => {
+        e.preventDefault();
+        dropzone.style.background = "#f6fbff";
+        [...e.dataTransfer.files].forEach((f) => {
+          if (!f.type.startsWith("image/")) return;
+          if (isDuplicate(f)) return;
+          selectedFiles.push(f);
         });
         renderPreview();
       };
 
-      /* ================= PREVIEW ================= */
+      fileInput.onchange = (e) => {
+        [...e.target.files].forEach((f) => {
+          if (!f.type.startsWith("image/")) return;
+          if (isDuplicate(f)) return;
+          selectedFiles.push(f);
+        });
+
+        e.target.value = "";
+        renderPreview();
+      };
+
       function renderPreview() {
         preview.innerHTML = "";
-        selectedItems.forEach((it, i) => {
+        const frag = document.createDocumentFragment();
+
+        selectedFiles.forEach((f, i) => {
+          let url = previewURLs.get(f);
+          if (!url) {
+            url = URL.createObjectURL(f);
+            previewURLs.set(f, url);
+          }
+
           const div = document.createElement("div");
           div.className = "preview-item";
-          let src = "";
-          if (it.type === "drive") src = it.thumbnail;
-          else {
-            let u = previewURLs.get(it.file);
-            if (!u) {
-              u = URL.createObjectURL(it.file);
-              previewURLs.set(it.file, u);
-            }
-            src = u;
-          }
-          div.innerHTML = `
-      <img src="${src}">
-      <div class="preview-name">${it.name}</div>
-    `;
-          preview.appendChild(div);
+
+          const btn = document.createElement("button");
+          btn.className = "preview-remove";
+          btn.textContent = "✕";
+          btn.onclick = () => removeFile(i);
+
+          const img = document.createElement("img");
+          img.loading = "lazy";
+          img.src = url;
+
+          const name = document.createElement("div");
+          name.className = "preview-name";
+          name.textContent = f.name;
+
+          div.append(btn, img, name);
+          frag.appendChild(div);
         });
+
+        preview.appendChild(frag);
       }
 
-      /* ================= CONVERT ================= */
-      async function fetchDriveFile(id, name) {
-        const res = await fetch(
-          `https://www.googleapis.com/drive/v3/files/${id}?alt=media`,
-          { headers: { Authorization: "Bearer " + accessToken } }
-        );
-        const blob = await res.blob();
-        return new File([blob], name, { type: blob.type });
+      function removeFile(i) {
+        const f = selectedFiles[i];
+        cleanupPreviewCache([f]);
+
+        selectedFiles.splice(i, 1);
+        renderPreview();
       }
 
       async function convertToWebP(file) {
-        if (file.name.endsWith(".webp")) return file;
-        const bmp = await createImageBitmap(file);
-        const c = new OffscreenCanvas(bmp.width, bmp.height);
-        c.getContext("2d").drawImage(bmp, 0, 0);
-        return await c.convertToBlob({ type: "image/webp", quality: 0.8 });
-      }
-
-      /* ================= START ================= */
-      async function start() {
-        status.textContent = "⏳ Đang xử lý...";
-        for (const it of selectedItems) {
-          let file =
-            it.type === "drive"
-              ? await fetchDriveFile(it.__driveId, it.name)
-              : it.file;
-
-          const webp = await convertToWebP(file);
-          await upload(webp, it.name.replace(/\.\w+$/, ".webp"));
+        if (
+          file.type === "image/webp" ||
+          file.name.toLowerCase().endsWith(".webp")
+        ) {
+          return file;
         }
-        status.textContent = "✅ Hoàn tất!";
+
+        const bitmap = await createImageBitmap(file);
+        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(bitmap, 0, 0);
+
+        const blob = await canvas.convertToBlob({
+          type: "image/webp",
+          quality: 0.8,
+        });
+
+        return blob;
+
+        clearAll();
       }
 
-      /* ================= UPLOAD ================= */
-      async function upload(blob, name) {
+      async function uploadDrive(blob, name) {
         const fd = new FormData();
         fd.append(
           "metadata",
-          new Blob([JSON.stringify({ name })], { type: "application/json" })
+          new Blob([JSON.stringify({ name, parents: [folderId] })], {
+            type: "application/json",
+          })
         );
         fd.append("file", blob);
         await fetch(
@@ -279,6 +642,78 @@
             body: fd,
           }
         );
+      }
+      async function deleteDriveAsset(fileId, name) {
+        if (!confirm("Xóa file này trên Drive?\n" + name)) return;
+
+        status.textContent = "Đang xóa: " + name;
+
+        const res = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${fileId}`,
+          {
+            method: "DELETE",
+            headers: { Authorization: "Bearer " + accessToken },
+          }
+        );
+
+        if (!res.ok) {
+          status.textContent = "❌ Xóa thất bại: " + name;
+          return;
+        }
+
+        // Xóa luôn khỏi UI (nhanh) + render lại
+        driveAssets = driveAssets.filter((x) => x.id !== fileId);
+        renderAssets();
+
+        status.textContent = "✅ Đã xóa: " + name;
+      }
+
+      async function start() {
+        if (!folderId || !selectedFiles.length)
+          return alert("Thiếu folder hoặc ảnh");
+
+        const CONCURRENCY = navigator.hardwareConcurrency >= 8 ? 4 : 2;
+        let done = 0;
+        const queue = [...selectedFiles];
+
+        async function worker() {
+          while (queue.length) {
+            const f = queue.shift();
+            status.textContent = "Đang xử lý: " + f.name;
+
+            const blob = await convertToWebP(f);
+            const outName = f.name.toLowerCase().endsWith(".webp")
+              ? f.name
+              : f.name.replace(/\.[^/.]+$/, "") + ".webp";
+
+            await uploadDrive(blob, outName);
+            // ✅ Nếu file này được add từ Drive asset thì xóa file gốc trên Drive
+            if (f.__driveId) {
+              try {
+                await deleteDriveFile(f.__driveId);
+              } catch (e) {
+                console.log("Không xóa được file gốc:", f.__driveId, e);
+              }
+            }
+
+            done++;
+            const p = Math.round((done / selectedFiles.length) * 100);
+            progressBar.style.width = p + "%";
+            progressBar.textContent = p + "%";
+          }
+        }
+
+        await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+        await loadFolders(folderId || currentFolderId);
+
+        // 🔥 clear preview cache gọn gàng
+        cleanupPreviewCache();
+
+        selectedFiles = [];
+        renderPreview();
+        progressBar.style.width = "0%";
+        progressBar.textContent = "0%";
+        status.textContent = "✅ Hoàn tất!";
       }
     </script>
   </body>
