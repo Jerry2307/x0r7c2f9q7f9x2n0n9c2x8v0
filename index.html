@@ -315,6 +315,7 @@
       let folderId = null;
       let selectedFiles = [];
       let driveAssets = []; // ảnh trong folder Drive
+      const previewURLs = new WeakMap();
 
       function isDuplicate(file) {
         return selectedFiles.some(
@@ -363,7 +364,7 @@
           const res = await gapi.client.drive.files.list({
             q:
               parentId === "root"
-                ? "trashed=false"
+                ? "trashed=false and 'root' in parents"
                 : `trashed=false and '${parentId}' in parents`,
             fields:
               "nextPageToken, files(id,name,mimeType,thumbnailLink,iconLink,size)",
@@ -424,23 +425,38 @@
         if (!box) return;
 
         box.innerHTML = "";
+        const frag = document.createDocumentFragment();
+
         driveAssets.forEach((f) => {
-          const thumb = f.thumbnailLink || f.iconLink || "";
-          box.innerHTML += `
-  <div class="asset-item" onclick="addDriveAssetToUpload('${
-    f.id
-  }','${escapeHtml(f.name)}')">
-    <div class="asset-badge">Drive</div>
+          const div = document.createElement("div");
+          div.className = "asset-item";
+          div.onclick = () => addDriveAssetToUpload(f.id, f.name);
 
-    <button class="asset-del" onclick="event.stopPropagation(); deleteDriveAsset('${
-      f.id
-    }','${escapeHtml(f.name)}')">✕</button>
+          const badge = document.createElement("div");
+          badge.className = "asset-badge";
+          badge.textContent = "Drive";
 
-    <img src="${thumb}">
-    <div class="preview-name">${escapeHtml(f.name)}</div>
-  </div>
-`;
+          const del = document.createElement("button");
+          del.className = "asset-del";
+          del.textContent = "✕";
+          del.onclick = (e) => {
+            e.stopPropagation();
+            deleteDriveAsset(f.id, f.name);
+          };
+
+          const img = document.createElement("img");
+          img.loading = "lazy";
+          img.src = f.thumbnailLink || f.iconLink || "";
+
+          const name = document.createElement("div");
+          name.className = "preview-name";
+          name.textContent = f.name;
+
+          div.append(badge, del, img, name);
+          frag.appendChild(div);
         });
+
+        box.appendChild(frag);
       }
       function clearAll() {
         selectedFiles = [];
@@ -533,43 +549,65 @@
 
       function renderPreview() {
         preview.innerHTML = "";
+        const frag = document.createDocumentFragment();
+
         selectedFiles.forEach((f, i) => {
-          preview.innerHTML += `
-          <div class="preview-item">
-            <button class="preview-remove" onclick="removeFile(${i})">✕</button>
-            <img src="${URL.createObjectURL(f)}">
-            <div class="preview-name">${f.name}</div>
-          </div>`;
+          let url = previewURLs.get(f);
+          if (!url) {
+            url = URL.createObjectURL(f);
+            previewURLs.set(f, url);
+          }
+
+          const div = document.createElement("div");
+          div.className = "preview-item";
+
+          const btn = document.createElement("button");
+          btn.className = "preview-remove";
+          btn.textContent = "✕";
+          btn.onclick = () => removeFile(i);
+
+          const img = document.createElement("img");
+          img.loading = "lazy";
+          img.src = url;
+
+          const name = document.createElement("div");
+          name.className = "preview-name";
+          name.textContent = f.name;
+
+          div.append(btn, img, name);
+          frag.appendChild(div);
         });
+
+        preview.appendChild(frag);
       }
+
       function removeFile(i) {
+        const f = selectedFiles[i];
+        const url = previewURLs.get(f);
+        if (url) URL.revokeObjectURL(url);
+
         selectedFiles.splice(i, 1);
         renderPreview();
       }
-
-      function convertToWebP(file) {
+      async function convertToWebP(file) {
         if (
           file.type === "image/webp" ||
           file.name.toLowerCase().endsWith(".webp")
         ) {
-          return Promise.resolve(file);
+          return file;
         }
 
-        return new Promise((resolve) => {
-          const img = new Image();
-          const r = new FileReader();
-          r.onload = () => {
-            img.onload = () => {
-              const c = document.createElement("canvas");
-              c.width = img.width;
-              c.height = img.height;
-              c.getContext("2d").drawImage(img, 0, 0);
-              c.toBlob((b) => resolve(b), "image/webp", 0.8);
-            };
-            img.src = r.result;
-          };
-          r.readAsDataURL(file);
+        const bitmap = await createImageBitmap(file);
+        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(bitmap, 0, 0);
+
+        const blob = await canvas.convertToBlob({
+          type: "image/webp",
+          quality: 0.8,
         });
+
+        return blob;
       }
 
       async function uploadDrive(blob, name) {
@@ -619,7 +657,7 @@
         if (!folderId || !selectedFiles.length)
           return alert("Thiếu folder hoặc ảnh");
 
-        const CONCURRENCY = 4;
+        const CONCURRENCY = navigator.hardwareConcurrency >= 8 ? 4 : 2;
         let done = 0;
         const queue = [...selectedFiles];
 
