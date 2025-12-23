@@ -1,197 +1,285 @@
 <!DOCTYPE html>
 <html lang="vi">
-<head>
-  <meta charset="UTF-8" />
-  <title>Convert ảnh → WebP → Google Drive</title>
-  <style>
-    body{font-family:Arial;background:#f5f6fa;padding:30px}
-    .container{max-width:980px;margin:auto;background:#fff;padding:20px;border-radius:12px}
-    .row{display:flex;gap:12px;align-items:center}
-    button{padding:10px 14px;border-radius:6px;border:1px solid #ddd;cursor:pointer}
-    button.primary{background:#4facfe;color:#fff;border:none}
-    .split{display:grid;grid-template-columns:300px 1fr;gap:16px;margin-top:16px}
-    .panel{border:1px solid #eee;border-radius:12px;padding:12px;background:#fafafa}
-    .list{max-height:360px;overflow:auto;display:flex;flex-direction:column;gap:6px}
-    .item{padding:10px;border-radius:8px;border:1px solid #e9e9e9;background:#fff;cursor:pointer}
-    .item:hover{background:#f2f7ff}
-    .preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px}
-    .preview-item{border:1px solid #ddd;border-radius:10px;padding:6px;background:#fff;min-height:160px}
-    .preview-item img{width:100%;height:90px;object-fit:cover;border-radius:6px}
-    .preview-name{font-size:12px;margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-    #assetList{max-height:420px;overflow-y:auto}
-  </style>
-</head>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Convert ảnh → WebP → Google Drive</title>
+    <style>
+      body {
+        font-family: Arial;
+        background: #f5f6fa;
+        padding: 30px;
+      }
+      .container {
+        max-width: 980px;
+        margin: auto;
+        background: #fff;
+        padding: 20px;
+        border-radius: 12px;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      button {
+        padding: 10px 14px;
+        border-radius: 6px;
+        border: 1px solid #ddd;
+        cursor: pointer;
+      }
+      button.primary {
+        background: #4facfe;
+        color: #fff;
+        border: none;
+      }
+      .split {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 16px;
+        margin-top: 16px;
+      }
+      .panel {
+        border: 1px solid #eee;
+        border-radius: 12px;
+        padding: 12px;
+        background: #fafafa;
+      }
+      .list {
+        max-height: 360px;
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .item {
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #e9e9e9;
+        background: #fff;
+        cursor: pointer;
+      }
+      .item:hover {
+        background: #f2f7ff;
+      }
+      .preview {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 12px;
+      }
+      .preview-item {
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 6px;
+        background: #fff;
+        min-height: 160px;
+      }
+      .preview-item img {
+        width: 100%;
+        height: 90px;
+        object-fit: cover;
+        border-radius: 6px;
+      }
+      .preview-name {
+        font-size: 12px;
+        margin-top: 6px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      #assetList {
+        max-height: 420px;
+        overflow-y: auto;
+      }
+    </style>
+  </head>
 
-<body>
-<div class="container">
-  <h2>Convert ảnh → WebP → Google Drive</h2>
+  <body>
+    <div class="container">
+      <h2>Convert ảnh → WebP → Google Drive</h2>
 
-  <div class="row">
-    <button class="primary" onclick="login()">🔐 Đăng nhập Google</button>
-    <span id="who"></span>
-  </div>
+      <div class="row">
+        <button class="primary" onclick="login()">🔐 Đăng nhập Google</button>
+        <span id="who"></span>
+      </div>
 
-  <div class="split">
-    <div class="panel">
-      <h3>Assets trong Drive</h3>
-      <div id="assetList" class="preview"></div>
+      <div class="split">
+        <div class="panel">
+          <h3>Assets trong Drive</h3>
+          <div id="assetList" class="preview"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Upload</h3>
+          <input type="file" id="fileInput" multiple accept="image/*" />
+          <div id="preview" class="preview"></div>
+          <button class="primary" onclick="start()">🚀 Convert & Upload</button>
+          <div id="status"></div>
+        </div>
+      </div>
     </div>
 
-    <div class="panel">
-      <h3>Upload</h3>
-      <input type="file" id="fileInput" multiple accept="image/*" />
-      <div id="preview" class="preview"></div>
-      <button class="primary" onclick="start()">🚀 Convert & Upload</button>
-      <div id="status"></div>
-    </div>
-  </div>
-</div>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client"></script>
 
-<script src="https://apis.google.com/js/api.js"></script>
-<script src="https://accounts.google.com/gsi/client"></script>
+    <script>
+      /* ================= CONFIG ================= */
+      const CLIENT_ID =
+        "860632481172-1nnq4dparmjdqrrehh407uv33ppvu2b7.apps.googleusercontent.com";
+      const API_KEY = "AIzaSyC6aOoJLRvkAmOn8MVtsu6yPO-mzK3AR3U";
+      const SCOPES = "https://www.googleapis.com/auth/drive";
+      const DISCOVERY =
+        "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest";
 
-<script>
-/* ================= CONFIG ================= */
-const CLIENT_ID = "YOUR_CLIENT_ID";
-const API_KEY   = "YOUR_API_KEY";
-const SCOPES    = "https://www.googleapis.com/auth/drive";
-const DISCOVERY = "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest";
+      /* ================= STATE ================= */
+      let accessToken = null;
+      let driveAssets = [];
+      let selectedItems = []; // LocalFile | DriveAsset
+      const previewURLs = new WeakMap();
 
-/* ================= STATE ================= */
-let accessToken = null;
-let driveAssets = [];
-let selectedItems = []; // LocalFile | DriveAsset
-const previewURLs = new WeakMap();
+      /* ================= LOGIN ================= */
+      function login() {
+        const tc = google.accounts.oauth2.initTokenClient({
+          client_id: CLIENT_ID,
+          scope: SCOPES,
+          callback: async (t) => {
+            accessToken = t.access_token;
+            await gapi.load("client");
+            await gapi.client.init({
+              apiKey: API_KEY,
+              discoveryDocs: [DISCOVERY],
+            });
+            gapi.client.setToken({ access_token: accessToken });
+            who.textContent = "✅ Đã kết nối Drive";
+            loadAssets();
+          },
+        });
+        tc.requestAccessToken();
+      }
 
-/* ================= LOGIN ================= */
-function login(){
-  const tc = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID,
-    scope: SCOPES,
-    callback: async (t)=>{
-      accessToken = t.access_token;
-      await gapi.load("client");
-      await gapi.client.init({ apiKey: API_KEY, discoveryDocs:[DISCOVERY] });
-      gapi.client.setToken({ access_token: accessToken });
-      who.textContent = "✅ Đã kết nối Drive";
-      loadAssets();
-    }
-  });
-  tc.requestAccessToken();
-}
+      /* ================= LOAD DRIVE ASSETS ================= */
+      async function loadAssets() {
+        driveAssets = [];
+        let pageToken = null;
+        do {
+          const res = await gapi.client.drive.files.list({
+            q: "trashed=false and mimeType contains 'image/'",
+            fields: "nextPageToken,files(id,name,thumbnailLink,iconLink)",
+            pageToken,
+          });
+          driveAssets.push(...res.result.files);
+          pageToken = res.result.nextPageToken;
+        } while (pageToken);
+        renderAssets();
+      }
 
-/* ================= LOAD DRIVE ASSETS ================= */
-async function loadAssets(){
-  driveAssets = [];
-  let pageToken=null;
-  do{
-    const res = await gapi.client.drive.files.list({
-      q:"trashed=false and mimeType contains 'image/'",
-      fields:"nextPageToken,files(id,name,thumbnailLink,iconLink)",
-      pageToken
-    });
-    driveAssets.push(...res.result.files);
-    pageToken = res.result.nextPageToken;
-  }while(pageToken);
-  renderAssets();
-}
-
-function renderAssets(){
-  assetList.innerHTML="";
-  driveAssets.forEach(f=>{
-    const div=document.createElement("div");
-    div.className="preview-item";
-    div.onclick=()=>addDriveAsset(f);
-    div.innerHTML=`
-      <img src="${f.thumbnailLink||f.iconLink}">
+      function renderAssets() {
+        assetList.innerHTML = "";
+        driveAssets.forEach((f) => {
+          const div = document.createElement("div");
+          div.className = "preview-item";
+          div.onclick = () => addDriveAsset(f);
+          div.innerHTML = `
+      <img src="${f.thumbnailLink || f.iconLink}">
       <div class="preview-name">${f.name}</div>
     `;
-    assetList.appendChild(div);
-  });
-}
+          assetList.appendChild(div);
+        });
+      }
 
-/* ================= ADD ITEMS ================= */
-function addDriveAsset(f){
-  if(selectedItems.some(x=>x.__driveId===f.id))return;
-  selectedItems.push({
-    __driveId:f.id,
-    name:f.name,
-    thumbnail:f.thumbnailLink||f.iconLink,
-    type:"drive"
-  });
-  renderPreview();
-}
+      /* ================= ADD ITEMS ================= */
+      function addDriveAsset(f) {
+        if (selectedItems.some((x) => x.__driveId === f.id)) return;
+        selectedItems.push({
+          __driveId: f.id,
+          name: f.name,
+          thumbnail: f.thumbnailLink || f.iconLink,
+          type: "drive",
+        });
+        renderPreview();
+      }
 
-fileInput.onchange=e=>{
-  [...e.target.files].forEach(f=>{
-    selectedItems.push({ file:f, name:f.name, type:"local" });
-  });
-  renderPreview();
-};
+      fileInput.onchange = (e) => {
+        [...e.target.files].forEach((f) => {
+          selectedItems.push({ file: f, name: f.name, type: "local" });
+        });
+        renderPreview();
+      };
 
-/* ================= PREVIEW ================= */
-function renderPreview(){
-  preview.innerHTML="";
-  selectedItems.forEach((it,i)=>{
-    const div=document.createElement("div");
-    div.className="preview-item";
-    let src="";
-    if(it.type==="drive") src=it.thumbnail;
-    else{
-      let u=previewURLs.get(it.file);
-      if(!u){u=URL.createObjectURL(it.file);previewURLs.set(it.file,u);}
-      src=u;
-    }
-    div.innerHTML=`
+      /* ================= PREVIEW ================= */
+      function renderPreview() {
+        preview.innerHTML = "";
+        selectedItems.forEach((it, i) => {
+          const div = document.createElement("div");
+          div.className = "preview-item";
+          let src = "";
+          if (it.type === "drive") src = it.thumbnail;
+          else {
+            let u = previewURLs.get(it.file);
+            if (!u) {
+              u = URL.createObjectURL(it.file);
+              previewURLs.set(it.file, u);
+            }
+            src = u;
+          }
+          div.innerHTML = `
       <img src="${src}">
       <div class="preview-name">${it.name}</div>
     `;
-    preview.appendChild(div);
-  });
-}
+          preview.appendChild(div);
+        });
+      }
 
-/* ================= CONVERT ================= */
-async function fetchDriveFile(id,name){
-  const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${id}?alt=media`,
-    {headers:{Authorization:"Bearer "+accessToken}}
-  );
-  const blob = await res.blob();
-  return new File([blob],name,{type:blob.type});
-}
+      /* ================= CONVERT ================= */
+      async function fetchDriveFile(id, name) {
+        const res = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${id}?alt=media`,
+          { headers: { Authorization: "Bearer " + accessToken } }
+        );
+        const blob = await res.blob();
+        return new File([blob], name, { type: blob.type });
+      }
 
-async function convertToWebP(file){
-  if(file.name.endsWith(".webp"))return file;
-  const bmp = await createImageBitmap(file);
-  const c = new OffscreenCanvas(bmp.width,bmp.height);
-  c.getContext("2d").drawImage(bmp,0,0);
-  return await c.convertToBlob({type:"image/webp",quality:0.8});
-}
+      async function convertToWebP(file) {
+        if (file.name.endsWith(".webp")) return file;
+        const bmp = await createImageBitmap(file);
+        const c = new OffscreenCanvas(bmp.width, bmp.height);
+        c.getContext("2d").drawImage(bmp, 0, 0);
+        return await c.convertToBlob({ type: "image/webp", quality: 0.8 });
+      }
 
-/* ================= START ================= */
-async function start(){
-  status.textContent="⏳ Đang xử lý...";
-  for(const it of selectedItems){
-    let file = it.type==="drive"
-      ? await fetchDriveFile(it.__driveId,it.name)
-      : it.file;
+      /* ================= START ================= */
+      async function start() {
+        status.textContent = "⏳ Đang xử lý...";
+        for (const it of selectedItems) {
+          let file =
+            it.type === "drive"
+              ? await fetchDriveFile(it.__driveId, it.name)
+              : it.file;
 
-    const webp = await convertToWebP(file);
-    await upload(webp,it.name.replace(/\.\w+$/,".webp"));
-  }
-  status.textContent="✅ Hoàn tất!";
-}
+          const webp = await convertToWebP(file);
+          await upload(webp, it.name.replace(/\.\w+$/, ".webp"));
+        }
+        status.textContent = "✅ Hoàn tất!";
+      }
 
-/* ================= UPLOAD ================= */
-async function upload(blob,name){
-  const fd=new FormData();
-  fd.append("metadata",new Blob([JSON.stringify({name})],{type:"application/json"}));
-  fd.append("file",blob);
-  await fetch(
-    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
-    {method:"POST",headers:{Authorization:"Bearer "+accessToken},body:fd}
-  );
-}
-</script>
-</body>
+      /* ================= UPLOAD ================= */
+      async function upload(blob, name) {
+        const fd = new FormData();
+        fd.append(
+          "metadata",
+          new Blob([JSON.stringify({ name })], { type: "application/json" })
+        );
+        fd.append("file", blob);
+        await fetch(
+          "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+          {
+            method: "POST",
+            headers: { Authorization: "Bearer " + accessToken },
+            body: fd,
+          }
+        );
+      }
+    </script>
+  </body>
 </html>
