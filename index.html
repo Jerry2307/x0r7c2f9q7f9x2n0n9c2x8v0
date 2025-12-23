@@ -320,9 +320,11 @@
       function cleanupPreviewCache(files = selectedFiles) {
         files.forEach((f) => {
           const url = previewURLs.get(f);
-          if (url) URL.revokeObjectURL(url);
+          if (url) {
+            URL.revokeObjectURL(url);
+            previewURLs.delete(f); // ✅ đúng với WeakMap
+          }
         });
-        previewURLs.clear();
       }
 
       function isDuplicate(file) {
