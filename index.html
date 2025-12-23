@@ -368,28 +368,24 @@
         driveAssets = [];
         let pageToken = null;
 
-        const isRoot = parentId === "root";
-
         do {
           const res = await gapi.client.drive.files.list({
-            q: isRoot
-              ? "trashed=false"
-              : `trashed=false and '${parentId}' in parents`,
+            q:
+              parentId === "root"
+                ? "trashed=false"
+                : `trashed=false and '${parentId}' in parents`,
             fields:
-              "nextPageToken, files(id,name,mimeType,thumbnailLink,iconLink,driveId)",
+              "nextPageToken, files(id,name,mimeType,thumbnailLink,iconLink,size)",
             pageSize: 1000,
             pageToken,
-
-            // 🔥 CỰC KỲ QUAN TRỌNG CHO SHARED DRIVE
             supportsAllDrives: true,
             includeItemsFromAllDrives: true,
-            corpora: isRoot ? "allDrives" : "default",
           });
 
           (res.result.files || []).forEach((f) => {
             if (f.mimeType === "application/vnd.google-apps.folder") {
               allFolders.push(f);
-            } else if (f.mimeType?.startsWith("image/")) {
+            } else if (f.mimeType && f.mimeType.startsWith("image/")) {
               driveAssets.push(f);
             }
           });
@@ -398,7 +394,7 @@
         } while (pageToken);
 
         renderFolders();
-        renderAssets();
+        renderAssets(); // ✅ hiển thị asset trong folder bên trái
       }
 
       async function deleteDriveFile(fileId) {
