@@ -634,15 +634,19 @@
           })
         );
         fd.append("file", blob);
-        await fetch(
-          "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+
+        const res = await fetch(
+          "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,thumbnailLink",
           {
             method: "POST",
             headers: { Authorization: "Bearer " + accessToken },
             body: fd,
           }
         );
+
+        return await res.json(); // 👈 trả file
       }
+
       async function deleteDriveAsset(fileId, name) {
         if (!confirm("Xóa file này trên Drive?\n" + name)) return;
 
@@ -686,8 +690,16 @@
               ? f.name
               : f.name.replace(/\.[^/.]+$/, "") + ".webp";
 
-            await uploadDrive(blob, outName);
-            // ✅ Nếu file này được add từ Drive asset thì xóa file gốc trên Drive
+            // ⬇️ upload và nhận metadata
+            const uploaded = await uploadDrive(blob, outName);
+
+            // ✅ ADD NGAY VÀO ASSET LIST (không chờ Drive index)
+            if (uploaded && uploaded.id) {
+              driveAssets.unshift(uploaded);
+              renderAssets();
+            }
+
+            // ✅ Nếu là asset lấy từ Drive → xóa file gốc
             if (f.__driveId) {
               try {
                 await deleteDriveFile(f.__driveId);
@@ -704,13 +716,14 @@
         }
 
         await Promise.all(Array.from({ length: CONCURRENCY }, worker));
-        await loadFolders(folderId || currentFolderId);
 
-        // 🔥 clear preview cache gọn gàng
+        // 🔥 không cần loadFolders lại ngay → Drive delay
+        // await loadFolders(folderId);
+
         cleanupPreviewCache();
-
         selectedFiles = [];
         renderPreview();
+
         progressBar.style.width = "0%";
         progressBar.textContent = "0%";
         status.textContent = "✅ Hoàn tất!";
