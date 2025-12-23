@@ -317,6 +317,14 @@
       let driveAssets = []; // ảnh trong folder Drive
       const previewURLs = new WeakMap();
 
+      function cleanupPreviewCache(files = selectedFiles) {
+        files.forEach((f) => {
+          const url = previewURLs.get(f);
+          if (url) URL.revokeObjectURL(url);
+        });
+        previewURLs.clear();
+      }
+
       function isDuplicate(file) {
         return selectedFiles.some(
           (f) => f.name === file.name && f.size === file.size
@@ -464,14 +472,9 @@
         box.appendChild(frag);
       }
       function clearAll() {
-        selectedFiles.forEach((f) => {
-          const url = previewURLs.get(f);
-          if (url) URL.revokeObjectURL(url);
-        });
+        cleanupPreviewCache();
 
         selectedFiles = [];
-        previewURLs.clear();
-
         renderPreview();
         status.textContent = "🧹 Đã xoá toàn bộ danh sách upload!";
         progressBar.style.width = "0%";
@@ -595,8 +598,7 @@
 
       function removeFile(i) {
         const f = selectedFiles[i];
-        const url = previewURLs.get(f);
-        if (url) URL.revokeObjectURL(url);
+        cleanupPreviewCache([f]);
 
         selectedFiles.splice(i, 1);
         renderPreview();
@@ -703,12 +705,10 @@
 
         await Promise.all(Array.from({ length: CONCURRENCY }, worker));
         await loadFolders(folderId || currentFolderId);
-        // 🔥 clear ObjectURL sau upload xong
-        selectedFiles.forEach((f) => {
-          const url = previewURLs.get(f);
-          if (url) URL.revokeObjectURL(url);
-        });
-        previewURLs.clear();
+
+        // 🔥 clear preview cache gọn gàng
+        cleanupPreviewCache();
+
         selectedFiles = [];
         renderPreview();
         progressBar.style.width = "0%";
