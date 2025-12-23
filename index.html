@@ -281,6 +281,60 @@
 
         <div class="panel">
           <h3>Upload</h3>
+          <div style="margin-bottom: 12px">
+            <label class="muted">Chất lượng WebP</label>
+
+            <select
+              id="qualityPreset"
+              onchange="changeQualityPreset(this.value)"
+              style="
+                width: 100%;
+                padding: 6px;
+                border-radius: 6px;
+                border: 1px solid #ddd;
+              "
+            >
+              <option value="100">100% – Giữ nguyên chất lượng</option>
+              <option value="90">90% – Banner / Hero</option>
+              <option value="80" selected>80% – Chuẩn SEO Website</option>
+              <option value="65">65% – Blog / Thumbnail</option>
+              <option value="custom">Tùy chỉnh (%)</option>
+            </select>
+
+            <div id="customQualityBox" style="display: none; margin-top: 6px">
+              <label class="muted">
+                Quality:
+                <b><span id="qualityValue">80</span>%</b>
+              </label>
+              <input
+                type="range"
+                min="30"
+                max="100"
+                step="1"
+                value="80"
+                style="width: 100%"
+                oninput="updateQuality(this.value)"
+              />
+            </div>
+          </div>
+          <label
+            style="
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              margin-top: 8px;
+            "
+          >
+            <input
+              type="checkbox"
+              id="losslessToggle"
+              onchange="toggleLossless(this.checked)"
+            />
+            <span class="muted"
+              >Lossless WebP (giữ nguyên pixel, file lớn hơn)</span
+            >
+          </label>
+
           <input type="file" id="fileInput" multiple accept="image/*" />
           <div id="dropzone">🖱️ Kéo & thả ảnh vào đây</div>
           <div id="preview" class="preview"></div>
@@ -316,6 +370,55 @@
       let selectedFiles = [];
       let driveAssets = []; // ảnh trong folder Drive
       const previewURLs = new WeakMap();
+      let webpQuality = 0.8;
+      let webpLossless = false;
+
+      function changeQualityPreset(val) {
+        const customBox = document.getElementById("customQualityBox");
+        if (webpLossless) {
+          if (customBox) customBox.style.display = "none";
+          return;
+        }
+
+        if (val === "custom") {
+          if (customBox) customBox.style.display = "block";
+        } else {
+          if (customBox) customBox.style.display = "none";
+          webpQuality = Number(val) / 100;
+          document.getElementById("qualityValue").textContent = val;
+        }
+      }
+
+      function updateQuality(val) {
+        webpQuality = Number(val) / 100;
+        document.getElementById("qualityValue").textContent = val;
+      }
+      function toggleLossless(isOn) {
+        webpLossless = isOn;
+
+        const preset = document.getElementById("qualityPreset");
+        const customBox = document.getElementById("customQualityBox");
+        const range = customBox
+          ? customBox.querySelector('input[type="range"]')
+          : null;
+
+        // disable preset
+        if (preset) preset.disabled = isOn;
+
+        // disable + ẩn custom box khi lossless ON
+        if (customBox) {
+          if (isOn) {
+            customBox.style.display = "none";
+          } else {
+            // chỉ hiện lại nếu đang chọn custom
+            customBox.style.display =
+              preset && preset.value === "custom" ? "block" : "none";
+          }
+        }
+
+        // disable slider (phòng trường hợp bạn vẫn muốn hiển thị box)
+        if (range) range.disabled = isOn;
+      }
 
       function cleanupPreviewCache(files = selectedFiles) {
         files.forEach((f) => {
@@ -601,7 +704,6 @@
         selectedFiles.splice(i, 1);
         renderPreview();
       }
-
       async function convertToWebP(file) {
         if (
           file.type === "image/webp" ||
@@ -615,14 +717,17 @@
         const ctx = canvas.getContext("2d");
         ctx.drawImage(bitmap, 0, 0);
 
-        const blob = await canvas.convertToBlob({
+        if (webpLossless) {
+          return await canvas.convertToBlob({
+            type: "image/webp",
+            lossless: true,
+          });
+        }
+
+        return await canvas.convertToBlob({
           type: "image/webp",
-          quality: 0.8,
+          quality: webpQuality,
         });
-
-        return blob;
-
-        clearAll();
       }
 
       async function uploadDrive(blob, name) {
@@ -634,19 +739,15 @@
           })
         );
         fd.append("file", blob);
-
-        const res = await fetch(
-          "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,thumbnailLink",
+        await fetch(
+          "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
           {
             method: "POST",
             headers: { Authorization: "Bearer " + accessToken },
             body: fd,
           }
         );
-
-        return await res.json(); // 👈 trả file
       }
-
       async function deleteDriveAsset(fileId, name) {
         if (!confirm("Xóa file này trên Drive?\n" + name)) return;
 
@@ -690,16 +791,8 @@
               ? f.name
               : f.name.replace(/\.[^/.]+$/, "") + ".webp";
 
-            // ⬇️ upload và nhận metadata
-            const uploaded = await uploadDrive(blob, outName);
-
-            // ✅ ADD NGAY VÀO ASSET LIST (không chờ Drive index)
-            if (uploaded && uploaded.id) {
-              driveAssets.unshift(uploaded);
-              renderAssets();
-            }
-
-            // ✅ Nếu là asset lấy từ Drive → xóa file gốc
+            await uploadDrive(blob, outName);
+            // ✅ Nếu file này được add từ Drive asset thì xóa file gốc trên Drive
             if (f.__driveId) {
               try {
                 await deleteDriveFile(f.__driveId);
@@ -716,14 +809,13 @@
         }
 
         await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+        await loadFolders(folderId || currentFolderId);
 
-        // 🔥 không cần loadFolders lại ngay → Drive delay
-        // await loadFolders(folderId);
-
+        // 🔥 clear preview cache gọn gàng
         cleanupPreviewCache();
+
         selectedFiles = [];
         renderPreview();
-
         progressBar.style.width = "0%";
         progressBar.textContent = "0%";
         status.textContent = "✅ Hoàn tất!";
